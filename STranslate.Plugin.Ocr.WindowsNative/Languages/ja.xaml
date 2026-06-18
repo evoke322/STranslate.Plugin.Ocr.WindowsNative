@@ -1,0 +1,28 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Status">エンジン状態</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Status_Description">このプラグインは Windows 組み込み OCR エンジン（Windows.Media.Ocr）を使用します。完全にオフラインで動作し、API キーは不要です。利用可能な言語は現在のシステムの OCR 機能に依存します。</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineLanguage_Label">現在のエンジン言語：</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineNotAvailable">使用不可</sys:String>
+
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Language">OCR 言語</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Language_Description">OCR 認識言語を選択します。デフォルトは自動検出です。</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoDetect">自動検出</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Refresh">言語リストを更新</sys:String>
+
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount">使用回数</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format1">使用回数：</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format2">回</sys:String>
+
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported">「{0}」の OCR 言語パックはインストールされていません。</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported_Hint">プラグイン設定で、このシステムで利用可能な OCR 言語を選択してください。</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed">OCR エンジンの作成に失敗しました。</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed_Hint">現在のシステム OCR エンジンは利用できません。認識言語を切り替えて再試行してください。</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed">OCR 言語の自動検出に失敗しました。</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed_Hint">プラグイン設定で利用可能な OCR 認識言語を手動で選択してください。</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EmptyResult">画像から文字が検出されませんでした。</sys:String>
+
+</ResourceDictionary>

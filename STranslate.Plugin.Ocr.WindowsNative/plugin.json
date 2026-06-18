@@ -1,0 +1,10 @@
+{
+  "PluginID": "f8a3c7e2d1b54a9c8e7f6d5c4b3a2e1d",
+  "Name": "Windows OCR",
+  "Description": "适用于 STranslate 的 Windows 系统 OCR 插件",
+  "Author": "Evoke",
+  "Version": "1.0.0",
+  "Website": "https://learn.microsoft.com/en-us/uwp/api/windows.media.ocr.ocrengine",
+  "ExecuteFileName": "STranslate.Plugin.Ocr.WindowsNative.dll",
+  "IconPath": "icon.png"
+}

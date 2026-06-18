@@ -1,0 +1,32 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <!-- Engine Status -->
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Status">Engine Status</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Status_Description">This plugin uses the built-in Windows OCR engine (Windows.Media.Ocr). It runs entirely offline with no API Key required. Available languages depend on the OCR capabilities currently provided by the system.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineLanguage_Label">Current engine language:</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineNotAvailable">Not Available</sys:String>
+
+    <!-- Language Selection -->
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Language">OCR Language</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Language_Description">Select the OCR recognition language. Default is auto-detect (uses the system user's preferred language).</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoDetect">Auto Detect</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Refresh">Refresh language list</sys:String>
+
+    <!-- Usage Count -->
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount">Usage Count</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format1">Used </sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format2"> times</sys:String>
+
+    <!-- Error Messages -->
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported">The OCR language pack for "{0}" is not installed.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported_Hint">Select an OCR language currently available on this system in the plugin settings.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed">Failed to create the OCR engine.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed_Hint">Please check if the system language pack is correctly installed.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed">Failed to auto-detect OCR language.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed_Hint">Manually select an available OCR language in the plugin settings.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EmptyResult">No text detected in the image.</sys:String>
+
+</ResourceDictionary>

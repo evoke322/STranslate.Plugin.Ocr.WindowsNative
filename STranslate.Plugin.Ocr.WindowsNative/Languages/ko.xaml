@@ -1,0 +1,28 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Status">엔진 상태</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Status_Description">이 플러그인은 Windows 내장 OCR 엔진(Windows.Media.Ocr)을 사용합니다. 완전히 오프라인에서 동작하며 API 키가 필요하지 않습니다. 사용 가능한 언어는 현재 시스템에서 제공하는 OCR 기능에 따라 달라집니다.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineLanguage_Label">현재 엔진 언어:</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineNotAvailable">사용 불가</sys:String>
+
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Language">OCR 언어</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Language_Description">OCR 인식 언어를 선택합니다. 기본값은 자동 감지입니다.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoDetect">자동 감지</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Refresh">언어 목록 새로고침</sys:String>
+
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount">사용 횟수</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format1">사용 횟수: </sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format2">회</sys:String>
+
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported">「{0}」의 OCR 언어 팩이 설치되어 있지 않습니다.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported_Hint">플러그인 설정에서 현재 시스템에서 사용 가능한 OCR 언어를 선택하세요.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed">OCR 엔진 생성에 실패했습니다.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed_Hint">현재 시스템 OCR 엔진을 사용할 수 없습니다. 인식 언어를 변경한 뒤 다시 시도하세요.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed">OCR 언어 자동 감지에 실패했습니다.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed_Hint">플러그인 설정에서 사용 가능한 OCR 인식 언어를 직접 선택하세요.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EmptyResult">이미지에서 텍스트를 감지하지 못했습니다.</sys:String>
+
+</ResourceDictionary>
