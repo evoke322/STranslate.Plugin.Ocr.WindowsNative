@@ -193,7 +193,7 @@ public class Main : ObservableObject, IOcrPlugin
             if (string.IsNullOrWhiteSpace(line.Text))
                 continue;
 
-            var content = new OcrContent { Text = line.Text };
+            var content = new OcrContent { Text = NormalizeRecognizedText(line.Text) };
 
             // 计算该行所有词的综合边界框（还原到原始图片坐标）
             float minX = float.MaxValue, minY = float.MaxValue;
@@ -241,4 +241,37 @@ public class Main : ObservableObject, IOcrPlugin
 
         return result;
     }
+
+    private static string NormalizeRecognizedText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return text;
+
+        var chars = text.ToCharArray();
+        var writeIndex = 0;
+
+        for (var i = 0; i < chars.Length; i++)
+        {
+            var current = chars[i];
+            if (current == ' ' &&
+                i > 0 &&
+                i < chars.Length - 1 &&
+                IsCjk(chars[i - 1]) &&
+                IsCjk(chars[i + 1]))
+            {
+                continue;
+            }
+
+            chars[writeIndex++] = current;
+        }
+
+        return writeIndex == chars.Length ? text : new string(chars, 0, writeIndex);
+    }
+
+    private static bool IsCjk(char c) =>
+        c is >= '\u3400' and <= '\u4DBF' or
+             >= '\u4E00' and <= '\u9FFF' or
+             >= '\uF900' and <= '\uFAFF' or
+             >= '\u3040' and <= '\u30FF' or
+             >= '\uAC00' and <= '\uD7AF';
 }
