@@ -80,6 +80,13 @@ public class Main : ObservableObject, IOcrPlugin
         _ => null,
     };
 
+    /// <summary>
+    /// 声明本插件返回图片像素坐标的文本框，从而可被注册为图片翻译 OCR 服务。
+    /// Windows.Media.Ocr 的 <see cref="Windows.Media.Ocr.OcrWord.BoundingRect"/>
+    /// 直接对应图片像素位置，满足图片翻译的坐标需求。
+    /// </summary>
+    public bool SupportBoxPoints() => true;
+
     public async Task<OcrResult> RecognizeAsync(OcrRequest request, CancellationToken cancellationToken)
     {
         Context.Logger.LogDebug(
@@ -256,8 +263,8 @@ public class Main : ObservableObject, IOcrPlugin
             if (current == ' ' &&
                 i > 0 &&
                 i < chars.Length - 1 &&
-                IsCjk(chars[i - 1]) &&
-                IsCjk(chars[i + 1]))
+                IsCjkOrPunctuation(chars[i - 1]) &&
+                IsCjkOrPunctuation(chars[i + 1]))
             {
                 continue;
             }
@@ -274,4 +281,18 @@ public class Main : ObservableObject, IOcrPlugin
              >= '\uF900' and <= '\uFAFF' or
              >= '\u3040' and <= '\u30FF' or
              >= '\uAC00' and <= '\uD7AF';
+
+    /// <summary>
+    /// \u4E2D\u65E5\u97E9\u6807\u70B9\u7B26\u53F7\uFF08CJK Symbols and Punctuation + \u5168\u89D2/\u534A\u89D2\u5F62\u5F0F\uFF09\u3002
+    /// \u8986\u76D6\u5E38\u89C1\u4E2D\u6587\u6807\u70B9\uFF1A\uFF0C\u3002\u3001\uFF1B\uFF1A\uFF01\uFF1F\uFF08\uFF09\u300A\u300B\u300C\u300D\u300E\u300F\u3010\u3011\u2026\u2014\u00B7\uFF5E\u201C\u201D\u2018\u2019\u7B49\u3002
+    /// </summary>
+    private static bool IsCjkPunctuation(char c) =>
+        c is >= '\u3000' and <= '\u303F' or
+             >= '\uFF00' and <= '\uFFEF';
+
+    /// <summary>
+    /// CJK \u6C49\u5B57/\u5047\u540D/\u8C1A\u6587 \u6216 CJK \u6807\u70B9\u2014\u2014\u7528\u4E8E\u5224\u65AD\u7A7A\u683C\u4E24\u4FA7\u662F\u5426\u540C\u5C5E CJK \u8BED\u5883\u3002
+    /// \u5F53\u7A7A\u683C\u4E24\u4FA7\u5B57\u7B26\u5747\u4E3A\u6B64\u7C7B\u65F6\uFF0C\u79FB\u9664\u8BE5\u7A7A\u683C\uFF08OCR \u8BC6\u522B\u7ED3\u679C\u4E2D CJK \u5B57\u7B26\u95F4\u4E0D\u5E94\u6709\u7A7A\u683C\uFF09\u3002
+    /// </summary>
+    private static bool IsCjkOrPunctuation(char c) => IsCjk(c) || IsCjkPunctuation(c);
 }

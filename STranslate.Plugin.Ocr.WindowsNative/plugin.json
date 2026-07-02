@@ -3,7 +3,7 @@
   "Name": "Windows OCR",
   "Description": "适用于 STranslate 的 Windows 系统 OCR 插件",
   "Author": "Evoke",
-  "Version": "1.0.0",
+  "Version": "1.0.1",
   "Website": "https://learn.microsoft.com/en-us/uwp/api/windows.media.ocr.ocrengine",
   "ExecuteFileName": "STranslate.Plugin.Ocr.WindowsNative.dll",
   "IconPath": "icon.png"
