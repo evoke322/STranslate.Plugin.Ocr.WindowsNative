@@ -101,7 +101,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
             AvailableLanguages =
             [
-                new LanguageInfo(string.Empty, _context.GetTranslation("AutoDetect")),
+                new LanguageInfo(string.Empty, _context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_AutoDetect")),
                 .. languages.OrderBy(l => l.DisplayName),
             ];
 
@@ -117,7 +117,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _context.Logger.LogError(ex, "刷新 OCR 语言列表失败");
             AvailableLanguages =
             [
-                new LanguageInfo(string.Empty, _context.GetTranslation("AutoDetect")),
+                new LanguageInfo(string.Empty, _context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_AutoDetect")),
             ];
             IsOcrAvailable = false;
         }
@@ -148,13 +148,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             }
             else
             {
-                EngineLanguage = _context.GetTranslation("EngineNotAvailable");
+                EngineLanguage = _context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_EngineNotAvailable");
             }
         }
         catch (Exception ex)
         {
             _context.Logger.LogError(ex, "获取引擎信息失败");
-            EngineLanguage = _context.GetTranslation("EngineNotAvailable");
+            EngineLanguage = _context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_EngineNotAvailable");
         }
     }
 

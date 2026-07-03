@@ -2,6 +2,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
 using STranslate.Plugin.Ocr.WindowsNative.View;
 using STranslate.Plugin.Ocr.WindowsNative.ViewModel;
+using System.Collections.Generic;
+using System.Text;
 using System.Windows.Controls;
 using Windows.Globalization;
 using Windows.Graphics.Imaging;
@@ -95,6 +97,8 @@ public class Main : ObservableObject, IOcrPlugin
             request.Language);
 
         // 1. byte[] -> SoftwareBitmap
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var stream = new InMemoryRandomAccessStream();
         using (var writer = new DataWriter(stream))
         {
@@ -104,7 +108,12 @@ public class Main : ObservableObject, IOcrPlugin
         }
         stream.Seek(0);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         var decoder = await BitmapDecoder.CreateAsync(stream);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
         var softwareBitmap = await decoder.GetSoftwareBitmapAsync();
 
         var originalWidth = (uint)softwareBitmap.PixelWidth;
@@ -130,6 +139,7 @@ public class Main : ObservableObject, IOcrPlugin
                 ScaledHeight = scaledHeight,
             };
             softwareBitmap.Dispose();
+            cancellationToken.ThrowIfCancellationRequested();
             softwareBitmap = await decoder.GetSoftwareBitmapAsync(
                 BitmapPixelFormat.Bgra8,
                 BitmapAlphaMode.Premultiplied,
@@ -141,10 +151,17 @@ public class Main : ObservableObject, IOcrPlugin
         }
 
         // 3. 创建 OCR 引擎
+        //   优先采用宿主传入的 per-request 语言（request.Language → BCP-47 tag），
+        //   未指定时回落到用户已在设置中保存的语言，均为空则走自动检测。
+        var languageTag = GetLanguage(request.Language);
+        if (string.IsNullOrWhiteSpace(languageTag))
+        {
+            languageTag = string.IsNullOrWhiteSpace(Settings.LanguageTag)
+                ? null
+                : Settings.LanguageTag;
+        }
+
         OcrEngine engine;
-        var languageTag = string.IsNullOrWhiteSpace(Settings.LanguageTag)
-            ? null
-            : Settings.LanguageTag;
 
         if (languageTag != null)
         {
@@ -153,8 +170,8 @@ public class Main : ObservableObject, IOcrPlugin
 
             if (!supported)
             {
-                var msg = string.Format(Context.GetTranslation("LanguageNotSupported"), languageTag) + "\n" +
-                          Context.GetTranslation("LanguageNotSupported_Hint");
+                var msg = string.Format(Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported"), languageTag) + "\n" +
+                          Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported_Hint");
                 var err = new OcrResult();
                 return err.Fail(msg);
             }
@@ -162,8 +179,8 @@ public class Main : ObservableObject, IOcrPlugin
             engine = OcrEngine.TryCreateFromLanguage(language);
             if (engine == null)
             {
-                var msg = Context.GetTranslation("EngineCreationFailed") + "\n" +
-                          Context.GetTranslation("EngineCreationFailed_Hint");
+                var msg = Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed") + "\n" +
+                          Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed_Hint");
                 var err = new OcrResult();
                 return err.Fail(msg);
             }
@@ -174,21 +191,31 @@ public class Main : ObservableObject, IOcrPlugin
             engine = OcrEngine.TryCreateFromUserProfileLanguages();
             if (engine == null)
             {
-                var msg = Context.GetTranslation("AutoLanguageFailed") + "\n" +
-                          Context.GetTranslation("AutoLanguageFailed_Hint");
+                var msg = Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed") + "\n" +
+                          Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed_Hint");
                 var err = new OcrResult();
                 return err.Fail(msg);
             }
         }
 
-        // 4. 执行 OCR 识别
-        var ocrResult = await engine.RecognizeAsync(softwareBitmap);
+        // 4. 执行 OCR 识别，并在完成后释放 SoftwareBitmap 句柄
+        cancellationToken.ThrowIfCancellationRequested();
+
+        Windows.Media.Ocr.OcrResult? ocrResult;
+        try
+        {
+            ocrResult = await engine.RecognizeAsync(softwareBitmap);
+        }
+        finally
+        {
+            softwareBitmap.Dispose();
+        }
 
         if (string.IsNullOrWhiteSpace(ocrResult?.Text))
         {
             Context.Logger.LogWarning("OCR 识别结果为空");
             var err = new OcrResult();
-            return err.Fail(Context.GetTranslation("EmptyResult"));
+            return err.Fail(Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_EmptyResult"));
         }
 
         // 5. 组装返回结果 — 按行组织，每行包含 BoxPoints 位置信息
@@ -249,50 +276,63 @@ public class Main : ObservableObject, IOcrPlugin
         return result;
     }
 
+    /// <summary>
+    /// 归一化 OCR 识别文本中的空格：仅保留以下三类空格，其余一律移除。
+    /// 1) 英文标点之后（如 "Hello, world" 中 ',' 后的空格）；
+    /// 2) 英文单词 / 数字之间（如 "hello world"、"foo 123"）；
+    /// 3) 中文与英文 / 数字之间，双向（如 "你好 world"、"版本 2"）。
+    /// </summary>
     private static string NormalizeRecognizedText(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
             return text;
 
         var chars = text.ToCharArray();
-        var writeIndex = 0;
+        var result = new StringBuilder(chars.Length);
 
         for (var i = 0; i < chars.Length; i++)
         {
             var current = chars[i];
-            if (current == ' ' &&
-                i > 0 &&
-                i < chars.Length - 1 &&
-                IsCjkOrPunctuation(chars[i - 1]) &&
-                IsCjkOrPunctuation(chars[i + 1]))
+            if (current == ' ' && i > 0 && i < chars.Length - 1
+                && !ShouldKeepSpace(chars[i - 1], chars[i + 1]))
             {
                 continue;
             }
-
-            chars[writeIndex++] = current;
+            result.Append(current);
         }
 
-        return writeIndex == chars.Length ? text : new string(chars, 0, writeIndex);
+        return result.ToString();
     }
 
+    /// <summary>
+    /// 判断 left 与 right 之间的空格是否应予保留。
+    /// </summary>
+    private static bool ShouldKeepSpace(char left, char right) =>
+        // 英文标点之后保留空格
+        IsEnglishPunctuation(left) ||
+        // 英文单词 / 数字之间保留空格
+        (IsEnglishLetterOrDigit(left) && IsEnglishLetterOrDigit(right)) ||
+        // 中文与英文 / 数字之间保留空格（双向）
+        (IsCjk(left) && IsEnglishLetterOrDigit(right)) ||
+        (IsEnglishLetterOrDigit(left) && IsCjk(right));
+
     private static bool IsCjk(char c) =>
-        c is >= '\u3400' and <= '\u4DBF' or
-             >= '\u4E00' and <= '\u9FFF' or
-             >= '\uF900' and <= '\uFAFF' or
-             >= '\u3040' and <= '\u30FF' or
-             >= '\uAC00' and <= '\uD7AF';
+        c is >= '㐀' and <= '䶿' or
+             >= '一' and <= '鿿' or
+             >= '豈' and <= '﫿' or
+             >= '぀' and <= 'ヿ' or
+             >= '가' and <= '힯';
 
     /// <summary>
-    /// \u4E2D\u65E5\u97E9\u6807\u70B9\u7B26\u53F7\uFF08CJK Symbols and Punctuation + \u5168\u89D2/\u534A\u89D2\u5F62\u5F0F\uFF09\u3002
-    /// \u8986\u76D6\u5E38\u89C1\u4E2D\u6587\u6807\u70B9\uFF1A\uFF0C\u3002\u3001\uFF1B\uFF1A\uFF01\uFF1F\uFF08\uFF09\u300A\u300B\u300C\u300D\u300E\u300F\u3010\u3011\u2026\u2014\u00B7\uFF5E\u201C\u201D\u2018\u2019\u7B49\u3002
+    /// ASCII 字母或数字。
     /// </summary>
-    private static bool IsCjkPunctuation(char c) =>
-        c is >= '\u3000' and <= '\u303F' or
-             >= '\uFF00' and <= '\uFFEF';
+    private static bool IsEnglishLetterOrDigit(char c) =>
+        c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9';
 
     /// <summary>
-    /// CJK \u6C49\u5B57/\u5047\u540D/\u8C1A\u6587 \u6216 CJK \u6807\u70B9\u2014\u2014\u7528\u4E8E\u5224\u65AD\u7A7A\u683C\u4E24\u4FA7\u662F\u5426\u540C\u5C5E CJK \u8BED\u5883\u3002
-    /// \u5F53\u7A7A\u683C\u4E24\u4FA7\u5B57\u7B26\u5747\u4E3A\u6B64\u7C7B\u65F6\uFF0C\u79FB\u9664\u8BE5\u7A7A\u683C\uFF08OCR \u8BC6\u522B\u7ED3\u679C\u4E2D CJK \u5B57\u7B26\u95F4\u4E0D\u5E94\u6709\u7A7A\u683C\uFF09\u3002
+    /// ASCII 标点或符号（非字母、非数字、非空白）。
+    /// 覆盖常见英文标点：, . ! ? ; : ' " ( ) [ ] { } / \ @ # $ % ^ &amp; * _ + = ~ ` &lt; &gt; 等。
     /// </summary>
-    private static bool IsCjkOrPunctuation(char c) => IsCjk(c) || IsCjkPunctuation(c);
+    private static bool IsEnglishPunctuation(char c) =>
+        c < 128 && !char.IsLetterOrDigit(c) && c != ' ';
 }
