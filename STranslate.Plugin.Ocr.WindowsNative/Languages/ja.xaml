@@ -13,16 +13,12 @@
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoDetect">自動検出</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Refresh">言語リストを更新</sys:String>
 
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount">使用回数</sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format1">使用回数：</sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format2">回</sys:String>
-
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported">「{0}」の OCR 言語パックはインストールされていません。</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported_Hint">プラグイン設定で、このシステムで利用可能な OCR 言語を選択してください。</sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed">OCR エンジンの作成に失敗しました。</sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed_Hint">現在のシステム OCR エンジンは利用できません。認識言語を切り替えて再試行してください。</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed">OCR 言語の自動検出に失敗しました。</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed_Hint">プラグイン設定で利用可能な OCR 認識言語を手動で選択してください。</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EmptyResult">画像から文字が検出されませんでした。</sys:String>
 
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_ImageDecodeFailed">画像をデコードできません。ファイルが破損しているか、サポートされていない形式の可能性があります。</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_RecognizeFailed">OCR 認識に失敗しました。再試行するか、別の画像を使用してください。</sys:String>
 </ResourceDictionary>

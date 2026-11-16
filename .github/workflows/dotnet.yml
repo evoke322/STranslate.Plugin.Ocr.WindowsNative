@@ -5,12 +5,10 @@ name: Public Plugin
 permissions:
   contents: write
 
+# 仅在发布 Release（published）时触发；推送 tag 不再触发构建与打包
 on:
   release:
     types: [published]
-  push:
-    tags:
-      - "*" # Push events to matching *, i.e. 1.0, 20.15.10
 
 jobs:
   build:

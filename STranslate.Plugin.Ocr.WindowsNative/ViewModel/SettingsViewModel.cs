@@ -14,20 +14,25 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IPluginContext _context;
     private readonly Settings _settings;
 
+    /// <summary>
+    /// 初始化期间抑制 OnSelectedLanguageChanged 的写盘与引擎刷新，
+    /// 避免"打开设置页即保存"以及重复调用 UpdateEngineInfo。
+    /// </summary>
+    private bool _initializing = true;
+
     public SettingsViewModel(IPluginContext context, Settings settings)
     {
         _context = context;
         _settings = settings;
 
-        // 初始化语言列表
+        // 初始化语言列表（内部已调用 UpdateEngineInfo）
         RefreshLanguages();
 
-        // 设置当前选中语言
-        SelectedLanguage = AvailableLanguages
-            .FirstOrDefault(l => l.LanguageTag == settings.LanguageTag)
-            ?? AvailableLanguages.FirstOrDefault();
+        // 设置当前选中语言；已保存语言包缺失时保留原 Tag，不静默覆盖用户选择
+        SelectedLanguage = AvailableLanguages.FirstOrDefault(l => l.LanguageTag == settings.LanguageTag)
+            ?? AvailableLanguages.FirstOrDefault(l => string.IsNullOrEmpty(l.LanguageTag));
 
-        UseCount = settings.UseCount;
+        _initializing = false;
     }
 
     /// <summary>
@@ -46,35 +51,20 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] public partial bool IsOcrAvailable { get; set; }
 
     /// <summary>
-    /// 使用次数。
-    /// </summary>
-    [ObservableProperty] public partial long UseCount { get; set; }
-
-    /// <summary>
     /// OCR 引擎当前识别语言（只读信息）。
     /// </summary>
     [ObservableProperty] public partial string? EngineLanguage { get; set; }
 
     partial void OnSelectedLanguageChanged(LanguageInfo? value)
     {
-        if (value == null)
-        {
-            _settings.LanguageTag = string.Empty;
-        }
-        else
-        {
-            _settings.LanguageTag = value.LanguageTag;
-        }
+        if (_initializing)
+            return;
+
+        _settings.LanguageTag = value?.LanguageTag ?? string.Empty;
         _context.SaveSettingStorage<Settings>();
 
         // 更新引擎语言显示
         UpdateEngineInfo();
-    }
-
-    partial void OnUseCountChanged(long value)
-    {
-        _settings.UseCount = value;
-        _context.SaveSettingStorage<Settings>();
     }
 
     /// <summary>
@@ -83,6 +73,9 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void RefreshLanguages()
     {
+        // 记录刷新前的选择，刷新后尽量恢复（含已保存但暂不可用的语言 Tag）
+        var previousTag = SelectedLanguage?.LanguageTag ?? _settings.LanguageTag;
+
         try
         {
             var availableLangs = OcrEngine.AvailableRecognizerLanguages;
@@ -108,6 +101,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             _context.Logger.LogInformation(
                 "已加载 {Count} 个 OCR 语言包",
                 languages.Count);
+
+            // 恢复刷新前的选择；语言包缺失时保留原 Tag（显示为原始 tag），不覆盖用户设置
+            var restored = AvailableLanguages.FirstOrDefault(l => l.LanguageTag == previousTag);
+            if (restored == null && !string.IsNullOrEmpty(previousTag))
+            {
+                restored = new LanguageInfo(previousTag, previousTag);
+                AvailableLanguages.Add(restored);
+                _context.Logger.LogWarning("语言包 {Tag} 当前不可用，保留用户选择", previousTag);
+            }
+            SelectedLanguage = restored ?? AvailableLanguages.FirstOrDefault();
 
             // 更新引擎信息
             UpdateEngineInfo();

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using STranslate.Plugin.Ocr.WindowsNative.View;
 using STranslate.Plugin.Ocr.WindowsNative.ViewModel;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Windows.Controls;
 using Windows.Globalization;
@@ -17,15 +18,18 @@ namespace STranslate.Plugin.Ocr.WindowsNative;
 /// </summary>
 public class Main : ObservableObject, IOcrPlugin
 {
+    /// <summary>
+    /// Windows.Media.Ocr 的语言能力取决于系统语言包，此处声明全部 LangEnum，
+    /// 实际可用性在识别时检测；缓存数组避免每次访问分配。
+    /// </summary>
+    private static readonly LangEnum[] AllLanguages = Enum.GetValues<LangEnum>();
+
     private Control? _settingUi;
     private SettingsViewModel? _viewModel;
     private Settings Settings { get; set; } = null!;
     private IPluginContext Context { get; set; } = null!;
 
-    /// <summary>
-    /// Windows.Media.Ocr 支持所有语言，无需在此限制。
-    /// </summary>
-    public IEnumerable<LangEnum> SupportedLanguages => Enum.GetValues<LangEnum>();
+    public IEnumerable<LangEnum> SupportedLanguages => AllLanguages;
 
     public Control GetSettingUI()
     {
@@ -91,120 +95,155 @@ public class Main : ObservableObject, IOcrPlugin
 
     public async Task<OcrResult> RecognizeAsync(OcrRequest request, CancellationToken cancellationToken)
     {
+        var stopwatch = Stopwatch.StartNew();
+
         Context.Logger.LogDebug(
             "开始 OCR 识别，图片大小: {ImageSize} bytes, 目标语言: {Language}",
             request.ImageData.Length,
             request.Language);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         // 1. byte[] -> SoftwareBitmap
-        cancellationToken.ThrowIfCancellationRequested();
-
-        using var stream = new InMemoryRandomAccessStream();
-        using (var writer = new DataWriter(stream))
+        //   统一解码为 Bgra8 + Premultiplied（OcrEngine 要求的格式），避免 16 位 PNG、
+        //   灰度图等原生格式直接进入识别导致失败；EXIF 方向统一按 Respect 处理，
+        //   保证是否触发缩放的两条路径行为一致。
+        SoftwareBitmap softwareBitmap;
+        uint originalWidth, originalHeight;
+        try
         {
-            writer.WriteBytes(request.ImageData);
-            await writer.StoreAsync();
-            writer.DetachStream();
-        }
-        stream.Seek(0);
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var decoder = await BitmapDecoder.CreateAsync(stream);
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var softwareBitmap = await decoder.GetSoftwareBitmapAsync();
-
-        var originalWidth = (uint)softwareBitmap.PixelWidth;
-        var originalHeight = (uint)softwareBitmap.PixelHeight;
-        float scaleX = 1.0f;
-        float scaleY = 1.0f;
-
-        // 2. 检查图片尺寸，如超出则缩放
-        if (originalWidth > OcrEngine.MaxImageDimension || originalHeight > OcrEngine.MaxImageDimension)
-        {
-            Context.Logger.LogWarning(
-                "图片尺寸 ({Width}x{Height}) 超过限制 {Max}px，执行缩放",
-                originalWidth, originalHeight, OcrEngine.MaxImageDimension);
-
-            var maxDimension = OcrEngine.MaxImageDimension;
-            var scale = Math.Min((double)maxDimension / originalWidth, (double)maxDimension / originalHeight);
-            var scaledWidth = Math.Max(1u, (uint)Math.Round(originalWidth * scale));
-            var scaledHeight = Math.Max(1u, (uint)Math.Round(originalHeight * scale));
-
-            var bitmapTransform = new BitmapTransform
+            using var stream = new InMemoryRandomAccessStream();
+            using (var writer = new DataWriter(stream))
             {
-                ScaledWidth = scaledWidth,
-                ScaledHeight = scaledHeight,
-            };
-            softwareBitmap.Dispose();
-            cancellationToken.ThrowIfCancellationRequested();
-            softwareBitmap = await decoder.GetSoftwareBitmapAsync(
-                BitmapPixelFormat.Bgra8,
-                BitmapAlphaMode.Premultiplied,
-                bitmapTransform,
-                ExifOrientationMode.IgnoreExifOrientation,
-                ColorManagementMode.DoNotColorManage);
-            scaleX = (float)originalWidth / softwareBitmap.PixelWidth;
-            scaleY = (float)originalHeight / softwareBitmap.PixelHeight;
-        }
-
-        // 3. 创建 OCR 引擎
-        //   优先采用宿主传入的 per-request 语言（request.Language → BCP-47 tag），
-        //   未指定时回落到用户已在设置中保存的语言，均为空则走自动检测。
-        var languageTag = GetLanguage(request.Language);
-        if (string.IsNullOrWhiteSpace(languageTag))
-        {
-            languageTag = string.IsNullOrWhiteSpace(Settings.LanguageTag)
-                ? null
-                : Settings.LanguageTag;
-        }
-
-        OcrEngine engine;
-
-        if (languageTag != null)
-        {
-            var language = new Language(languageTag);
-            bool supported = OcrEngine.IsLanguageSupported(language);
-
-            if (!supported)
-            {
-                var msg = string.Format(Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported"), languageTag) + "\n" +
-                          Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported_Hint");
-                var err = new OcrResult();
-                return err.Fail(msg);
+                writer.WriteBytes(request.ImageData);
+                await writer.StoreAsync().AsTask(cancellationToken);
+                writer.DetachStream();
             }
+            stream.Seek(0);
 
-            engine = OcrEngine.TryCreateFromLanguage(language);
+            var decoder = await BitmapDecoder.CreateAsync(stream).AsTask(cancellationToken);
+
+            // 先读元数据尺寸（含 EXIF 方向），超限时只解码一次（直接带缩放变换）
+            originalWidth = decoder.OrientedPixelWidth;
+            originalHeight = decoder.OrientedPixelHeight;
+            var maxDimension = OcrEngine.MaxImageDimension;
+
+            if (originalWidth > maxDimension || originalHeight > maxDimension)
+            {
+                Context.Logger.LogWarning(
+                    "图片尺寸 ({Width}x{Height}) 超过限制 {Max}px，执行缩放",
+                    originalWidth, originalHeight, maxDimension);
+
+                var scale = Math.Min((double)maxDimension / originalWidth, (double)maxDimension / originalHeight);
+                var transform = new BitmapTransform
+                {
+                    ScaledWidth = Math.Max(1u, (uint)Math.Round(originalWidth * scale)),
+                    ScaledHeight = Math.Max(1u, (uint)Math.Round(originalHeight * scale)),
+                    InterpolationMode = BitmapInterpolationMode.Fant,
+                };
+
+                softwareBitmap = await decoder.GetSoftwareBitmapAsync(
+                    BitmapPixelFormat.Bgra8,
+                    BitmapAlphaMode.Premultiplied,
+                    transform,
+                    ExifOrientationMode.RespectExifOrientation,
+                    ColorManagementMode.DoNotColorManage).AsTask(cancellationToken);
+            }
+            else
+            {
+                softwareBitmap = await decoder.GetSoftwareBitmapAsync(
+                    BitmapPixelFormat.Bgra8,
+                    BitmapAlphaMode.Premultiplied,
+                    new BitmapTransform(),
+                    ExifOrientationMode.RespectExifOrientation,
+                    ColorManagementMode.DoNotColorManage).AsTask(cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Context.Logger.LogError(ex, "图片解码失败");
+            return new OcrResult().Fail(
+                Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_ImageDecodeFailed"));
+        }
+
+        // 坐标还原比例：识别在（可能被缩放的）位图上进行，BoxPoints 需映射回原图像素
+        var scaleX = (float)originalWidth / softwareBitmap.PixelWidth;
+        var scaleY = (float)originalHeight / softwareBitmap.PixelHeight;
+
+        // 2. 创建 OCR 引擎
+        //   优先采用宿主传入的 per-request 语言（request.Language → BCP-47 tag），
+        //   不受支持时回落到用户设置语言，均为空或不可用则走自动检测；
+        //   全部失败时返回明确的"语言不可用"错误（而非把宿主语言问题误报为自动检测失败）。
+        OcrEngine? engine = null;
+        string? attemptedTag = null;
+
+        var requestTag = GetLanguage(request.Language);
+        if (!string.IsNullOrWhiteSpace(requestTag))
+        {
+            attemptedTag = requestTag;
+            engine = TryCreateEngine(requestTag);
             if (engine == null)
             {
-                var msg = Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed") + "\n" +
-                          Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed_Hint");
-                var err = new OcrResult();
-                return err.Fail(msg);
+                Context.Logger.LogWarning(
+                    "宿主指定语言 {Tag} 不可用，回落到插件设置语言", requestTag);
             }
         }
-        else
+
+        if (engine == null && !string.IsNullOrWhiteSpace(Settings.LanguageTag))
         {
-            // 自动模式：尝试从用户配置文件语言创建
+            attemptedTag = Settings.LanguageTag;
+            engine = TryCreateEngine(Settings.LanguageTag);
+            if (engine == null)
+            {
+                Context.Logger.LogWarning(
+                    "设置语言 {Tag} 不可用，回落到自动检测", Settings.LanguageTag);
+            }
+        }
+
+        if (engine == null)
+        {
             engine = OcrEngine.TryCreateFromUserProfileLanguages();
             if (engine == null)
             {
-                var msg = Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed") + "\n" +
+                softwareBitmap.Dispose();
+                string msg;
+                if (attemptedTag != null)
+                {
+                    msg = string.Format(
+                              Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported"),
+                              attemptedTag) + "\n" +
+                          Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported_Hint");
+                }
+                else
+                {
+                    msg = Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed") + "\n" +
                           Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed_Hint");
-                var err = new OcrResult();
-                return err.Fail(msg);
+                }
+                return new OcrResult().Fail(msg);
             }
         }
 
-        // 4. 执行 OCR 识别，并在完成后释放 SoftwareBitmap 句柄
+        // 3. 执行 OCR 识别，并在完成后释放 SoftwareBitmap 句柄
         cancellationToken.ThrowIfCancellationRequested();
 
         Windows.Media.Ocr.OcrResult? ocrResult;
         try
         {
-            ocrResult = await engine.RecognizeAsync(softwareBitmap);
+            ocrResult = await engine.RecognizeAsync(softwareBitmap).AsTask(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Context.Logger.LogError(ex, "OCR 识别失败");
+            return new OcrResult().Fail(
+                Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_RecognizeFailed"));
         }
         finally
         {
@@ -214,15 +253,17 @@ public class Main : ObservableObject, IOcrPlugin
         if (string.IsNullOrWhiteSpace(ocrResult?.Text))
         {
             Context.Logger.LogWarning("OCR 识别结果为空");
-            var err = new OcrResult();
-            return err.Fail(Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_EmptyResult"));
+            return new OcrResult().Fail(
+                Context.GetTranslation("STranslate_Plugin_Ocr_WindowsNative_EmptyResult"));
         }
 
-        // 5. 组装返回结果 — 按行组织，每行包含 BoxPoints 位置信息
-        var result = new OcrResult();
-        var lines = ocrResult.Lines;
+        // 4. 组装返回结果 — 按行组织，每行包含 BoxPoints 位置信息
+        var result = new OcrResult
+        {
+            Language = engine.RecognizerLanguage.LanguageTag,
+        };
 
-        foreach (var line in lines)
+        foreach (var line in ocrResult.Lines)
         {
             if (string.IsNullOrWhiteSpace(line.Text))
                 continue;
@@ -264,16 +305,35 @@ public class Main : ObservableObject, IOcrPlugin
             result.OcrContents.Add(content);
         }
 
-        // 更新使用次数
-        if (_viewModel != null)
-            _viewModel.UseCount++;
+        stopwatch.Stop();
+        result.Duration = stopwatch.Elapsed;
 
         Context.Logger.LogInformation(
-            "OCR 识别完成，共 {LineCount} 行，文本长度: {TextLength}",
+            "OCR 识别完成，共 {LineCount} 行，文本长度: {TextLength}，耗时: {Duration}ms",
             result.OcrContents.Count,
-            result.OcrContents.Sum(c => c.Text?.Length ?? 0));
+            result.OcrContents.Sum(c => c.Text?.Length ?? 0),
+            stopwatch.ElapsedMilliseconds);
 
         return result;
+    }
+
+    /// <summary>
+    /// 按 BCP-47 tag 尝试创建引擎；语言不受支持或创建失败返回 null（由调用方回落）。
+    /// </summary>
+    private static OcrEngine? TryCreateEngine(string languageTag)
+    {
+        try
+        {
+            var language = new Language(languageTag);
+            return OcrEngine.IsLanguageSupported(language)
+                ? OcrEngine.TryCreateFromLanguage(language)
+                : null;
+        }
+        catch (ArgumentException)
+        {
+            // 非法语言 tag
+            return null;
+        }
     }
 
     /// <summary>
@@ -281,6 +341,7 @@ public class Main : ObservableObject, IOcrPlugin
     /// 1) 英文标点之后（如 "Hello, world" 中 ',' 后的空格）；
     /// 2) 英文单词 / 数字之间（如 "hello world"、"foo 123"）；
     /// 3) 中文与英文 / 数字之间，双向（如 "你好 world"、"版本 2"）。
+    /// Windows.Media.Ocr 将每个汉字视为独立词，输出形如"你 好 世 界"，必须去除 CJK 字间空格。
     /// </summary>
     private static string NormalizeRecognizedText(string text)
     {
@@ -293,10 +354,15 @@ public class Main : ObservableObject, IOcrPlugin
         for (var i = 0; i < chars.Length; i++)
         {
             var current = chars[i];
-            if (current == ' ' && i > 0 && i < chars.Length - 1
-                && !ShouldKeepSpace(chars[i - 1], chars[i + 1]))
+            if (current == ' ' && i > 0 && i < chars.Length - 1)
             {
-                continue;
+                // 与已写入的末字符比较（而非原数组前一字符），
+                // 连续多个空格按单个空格处理，避免 "hello  world" 被粘连成 "helloworld"
+                var left = result.Length > 0 ? result[^1] : chars[i - 1];
+                if (!ShouldKeepSpace(left, chars[i + 1]))
+                {
+                    continue;
+                }
             }
             result.Append(current);
         }
@@ -313,15 +379,8 @@ public class Main : ObservableObject, IOcrPlugin
         // 英文单词 / 数字之间保留空格
         (IsEnglishLetterOrDigit(left) && IsEnglishLetterOrDigit(right)) ||
         // 中文与英文 / 数字之间保留空格（双向）
-        (IsCjk(left) && IsEnglishLetterOrDigit(right)) ||
-        (IsEnglishLetterOrDigit(left) && IsCjk(right));
-
-    private static bool IsCjk(char c) =>
-        c is >= '㐀' and <= '䶿' or
-             >= '一' and <= '鿿' or
-             >= '豈' and <= '﫿' or
-             >= '぀' and <= 'ヿ' or
-             >= '가' and <= '힯';
+        (TextHelper.IsCjk(left) && IsEnglishLetterOrDigit(right)) ||
+        (IsEnglishLetterOrDigit(left) && TextHelper.IsCjk(right));
 
     /// <summary>
     /// ASCII 字母或数字。
@@ -330,9 +389,9 @@ public class Main : ObservableObject, IOcrPlugin
         c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9';
 
     /// <summary>
-    /// ASCII 标点或符号（非字母、非数字、非空白）。
+    /// ASCII 标点或符号（非字母、非数字、非空白、非控制字符）。
     /// 覆盖常见英文标点：, . ! ? ; : ' " ( ) [ ] { } / \ @ # $ % ^ &amp; * _ + = ~ ` &lt; &gt; 等。
     /// </summary>
     private static bool IsEnglishPunctuation(char c) =>
-        c < 128 && !char.IsLetterOrDigit(c) && c != ' ';
+        c < 128 && !char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c) && !char.IsControl(c);
 }

@@ -15,18 +15,13 @@
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoDetect">自动检测</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Refresh">刷新语言列表</sys:String>
 
-    <!-- 使用次数 -->
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount">使用次数</sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format1">已使用</sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format2">次</sys:String>
-
     <!-- 错误消息 -->
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported">系统未安装「{0}」的 OCR 语言包。</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported_Hint">请在插件设置中选择当前系统可用的 OCR 语言。</sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed">无法创建 OCR 引擎。</sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed_Hint">当前系统 OCR 引擎不可用，请切换识别语言后重试。</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed">无法自动检测 OCR 语言。</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed_Hint">请在插件设置中手动选择可用的 OCR 识别语言。</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EmptyResult">未在图片中识别到文字。</sys:String>
 
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_ImageDecodeFailed">无法解码图片，文件可能已损坏或格式不受支持。</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_RecognizeFailed">OCR 识别失败，请重试或更换图片。</sys:String>
 </ResourceDictionary>

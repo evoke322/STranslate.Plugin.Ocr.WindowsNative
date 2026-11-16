@@ -52,17 +52,5 @@
             </ikw:SimpleStackPanel>
         </ui:SettingsCard>
 
-        <!--  使用次数  -->
-        <ui:SettingsCard Header="{DynamicResource STranslate_Plugin_Ocr_WindowsNative_UseCount}">
-            <ui:SettingsCard.HeaderIcon>
-                <ui:FontIcon Icon="{x:Static ui:FluentSystemIcons.DataUsage_20_Regular}" />
-            </ui:SettingsCard.HeaderIcon>
-            <TextBlock>
-                <Run Text="{DynamicResource STranslate_Plugin_Ocr_WindowsNative_UseCount_Format1}" />
-                <Run Text="{Binding UseCount}" />
-                <Run Text="{DynamicResource STranslate_Plugin_Ocr_WindowsNative_UseCount_Format2}" />
-            </TextBlock>
-        </ui:SettingsCard>
-
     </ikw:SimpleStackPanel>
 </UserControl>

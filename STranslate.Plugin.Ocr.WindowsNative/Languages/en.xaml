@@ -15,18 +15,13 @@
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoDetect">Auto Detect</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_Refresh">Refresh language list</sys:String>
 
-    <!-- Usage Count -->
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount">Usage Count</sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format1">Used </sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_UseCount_Format2"> times</sys:String>
-
     <!-- Error Messages -->
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported">The OCR language pack for "{0}" is not installed.</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_LanguageNotSupported_Hint">Select an OCR language currently available on this system in the plugin settings.</sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed">Failed to create the OCR engine.</sys:String>
-    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EngineCreationFailed_Hint">Please check if the system language pack is correctly installed.</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed">Failed to auto-detect OCR language.</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_AutoLanguageFailed_Hint">Manually select an available OCR language in the plugin settings.</sys:String>
     <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_EmptyResult">No text detected in the image.</sys:String>
 
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_ImageDecodeFailed">Failed to decode the image. The file may be corrupted or in an unsupported format.</sys:String>
+    <sys:String x:Key="STranslate_Plugin_Ocr_WindowsNative_RecognizeFailed">OCR recognition failed. Please retry or use a different image.</sys:String>
 </ResourceDictionary>
